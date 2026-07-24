@@ -6,7 +6,7 @@ let products = [];
 let cart = {};
 
 // Ваша рабочая ссылка на Google Sheets API из скриншота
-const PRODUCTS_API_URL = "https://script.google.com/macros/s/AKfycbwFUVouTg09bCWvwdWIPvsE2X0qOU4jxzqkq_BbExYdpvjzldaopFre867gpbkrpZneD/exec";
+const PRODUCTS_API_URL = "https://script.google.com/macros/s/AKfycbx6aXJ7YJmmOFIlEeBgEwgyBg9I5GVeDUFURA6Ri5nMpJi_GGM7cQjBN8o2bz_djSrS/exec";
 
 // Блок объявления переменных DOM-элементов (теперь он на месте)
 const productsGrid = document.getElementById('products-grid');
