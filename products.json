@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "name": "Фастекс пластиковый",
+    "size": "25 мм",
+    "price": 45,
+    "stock": 13,
+    "image": "images/fastex_25.jpg"
+  },
+  {
+    "id": 2,
+    "name": "Регулировка двухщелевая",
+    "size": "30 мм",
+    "price": 20,
+    "stock": 45,
+    "image": "images/adjuster_30.jpg"
+  },
+  {
+    "id": 3,
+    "name": "Полукольцо металл",
+    "size": "20 мм",
+    "price": 35,
+    "stock": 0,
+    "image": "images/ring_20.jpg"
+  }
+]
