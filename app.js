@@ -78,11 +78,10 @@ function renderProducts() {
         const currentQty = cart[product.id] || 0;
         const unit = product.unit || 'шт.';
         
-        // Ультра-прозрачные минималистичные бейджи (уменьшенный шрифт и прозрачный фон)
+        // Светлые полупрозрачные плашки с черным текстом (высокий контраст и читаемость)
         const stockBadge = isOutOfStock 
-            ? `<span class="absolute top-2 left-2 bg-red-950/20 backdrop-blur-[2px] px-2 py-0.5 rounded-lg text-[9px] text-red-400 font-bold tracking-wider uppercase border border-red-500/10 shadow-sm">Нет</span>`
-            : `<span class="absolute top-2 left-2 bg-zinc-950/35 backdrop-blur-[2px] px-2 py-0.5 rounded-lg text-[9px] text-[#C67C4E] font-bold tracking-wider uppercase border border-white/5 shadow-sm">${product.stock} ${unit}</span>`;
-
+            ? `<span class="absolute top-2 left-2 bg-red-200/85 backdrop-blur-[2px] px-2 py-0.5 rounded-lg text-[9px] text-red-950 font-bold tracking-wider uppercase border border-red-300/20 shadow-sm">Нет</span>`
+            : `<span class="absolute top-2 left-2 bg-white/85 backdrop-blur-[2px] px-2 py-0.5 rounded-lg text-[9px] text-zinc-950 font-bold tracking-wider uppercase border border-white/30 shadow-sm">Осталось: ${product.stock} ${unit}</span>`;
         const opacityClass = isOutOfStock ? 'opacity-40' : '';
 
         return `
