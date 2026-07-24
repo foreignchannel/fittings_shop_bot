@@ -8,6 +8,12 @@ let cart = {};
 // Ссылка на ваш Google Sheets API
 const PRODUCTS_API_URL = "https://script.google.com/macros/s/AKfycbwFUVouTg09bCWVwdWIPvsE2X0qOU4jxzkq_BbExYdpvjzldaopFre867gpbkrpZneD/exec";
 
+const productsGrid = document.getElementById('products-grid');
+const cartSummary = document.getElementById('cart-summary');
+const totalPriceEl = document.getElementById('total-price');
+const cityInput = document.getElementById('city');
+const submitBtn = document.getElementById('submit-order-btn');
+
 async function loadProducts() {
     try {
         const response = await fetch(PRODUCTS_API_URL);
