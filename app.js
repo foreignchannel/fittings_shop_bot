@@ -5,41 +5,67 @@ tg.expand();
 let products = [];
 let cart = {};
 
-// Ваша рабочая ссылка на Google Sheets API из скриншота
+// Ваша рабочая ссылка на Google Sheets API
 const PRODUCTS_API_URL = "https://script.google.com/macros/s/AKfycbx6aXJ7YJmmOFIlEeBgEwgyBg9I5GVeDUFURA6Ri5nMpJi_GGM7cQjBN8o2bz_djSrS/exec";
 
-// Блок объявления переменных DOM-элементов (теперь он на месте)
+// Блок объявления переменных DOM-элементов
 const productsGrid = document.getElementById('products-grid');
 const cartSummary = document.getElementById('cart-summary');
 const totalPriceEl = document.getElementById('total-price');
 const cityInput = document.getElementById('city');
 const submitBtn = document.getElementById('submit-order-btn');
 
-// Загрузка товаров из Google Таблицы
+// Загрузка товаров с использованием мгновенного кэширования (SWR)
 async function loadProducts() {
+    // 1. Пытаемся мгновенно загрузить товары из локального кэша телефона
+    const cachedData = localStorage.getItem('fittings_products_cache');
+    if (cachedData) {
+        try {
+            products = JSON.parse(cachedData);
+            renderProducts();
+            updateCart();
+            hidePreloader(); // Сразу же убираем экран загрузки!
+        } catch (e) {
+            console.error("Ошибка чтения кэша:", e);
+        }
+    }
+
+    // 2. В фоновом режиме делаем запрос к Google Таблице за свежими остатками
     try {
         const response = await fetch(PRODUCTS_API_URL);
-        if (!response.ok) throw new Error('Ошибка загрузки');
-        products = await response.json();
+        if (!response.ok) throw new Error('Ошибка фоновой загрузки');
+        const freshProducts = await response.json();
+        
+        products = freshProducts;
+        localStorage.setItem('fittings_products_cache', JSON.stringify(freshProducts));
+        
+        // Тихо обновляем витрину свежими данными
         renderProducts();
         updateCart();
     } catch (error) {
-        console.error(error);
-        if (productsGrid) {
+        console.error("Ошибка обновления данных из Google:", error);
+        
+        // Если кэша вообще не было и сеть упала — только тогда показываем ошибку
+        if (products.length === 0 && productsGrid) {
             productsGrid.innerHTML = `
                 <div class="col-span-2 text-center py-8">
                     <p class="text-red-400/80 text-xs font-medium">Ошибка загрузки каталога товаров</p>
-                    <p class="text-[10px] text-zinc-600 mt-1">Пожалуйста, проверьте подключение к Google Таблице</p>
+                    <p class="text-[10px] text-zinc-600 mt-1">Пожалуйста, проверьте подключение к сети</p>
                 </div>
             `;
         }
     } finally {
-        // Гарантированно убираем прелоадер после завершения загрузки
-        const preloader = document.getElementById('preloader');
-        if (preloader) {
-            preloader.classList.add('opacity-0');
-            setTimeout(() => preloader.remove(), 500);
-        }
+        // На случай самого первого входа (когда кэша еще нет) убираем прелоадер после завершения запроса
+        hidePreloader();
+    }
+}
+
+// Плавное удаление прелоадера
+function hidePreloader() {
+    const preloader = document.getElementById('preloader');
+    if (preloader) {
+        preloader.classList.add('opacity-0');
+        setTimeout(() => preloader.remove(), 500);
     }
 }
 
@@ -50,14 +76,12 @@ function renderProducts() {
     productsGrid.innerHTML = products.map(product => {
         const isOutOfStock = product.stock <= 0;
         const currentQty = cart[product.id] || 0;
-        
-        // Получаем единицу измерения из таблицы (по умолчанию 'шт.')
         const unit = product.unit || 'шт.';
         
-        // Полупрозрачный матовый стеклянный бейдж (с использованием backdrop-blur)
+        // Ультра-прозрачные минималистичные бейджи (уменьшенный шрифт и прозрачный фон)
         const stockBadge = isOutOfStock 
-            ? `<span class="absolute top-2.5 left-2.5 bg-red-950/40 backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] text-red-300 font-semibold border border-red-500/20 shadow-lg">Нет в наличии</span>`
-            : `<span class="absolute top-2.5 left-2.5 bg-[#131313]/55 backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] text-[#C67C4E] font-semibold border border-white/5 shadow-md">Осталось: ${product.stock} ${unit}</span>`;
+            ? `<span class="absolute top-2 left-2 bg-red-950/20 backdrop-blur-[2px] px-2 py-0.5 rounded-lg text-[9px] text-red-400 font-bold tracking-wider uppercase border border-red-500/10 shadow-sm">Нет</span>`
+            : `<span class="absolute top-2 left-2 bg-zinc-950/35 backdrop-blur-[2px] px-2 py-0.5 rounded-lg text-[9px] text-[#C67C4E] font-bold tracking-wider uppercase border border-white/5 shadow-sm">${product.stock} ${unit}</span>`;
 
         const opacityClass = isOutOfStock ? 'opacity-40' : '';
 
@@ -76,7 +100,7 @@ function renderProducts() {
                     <p class="text-[11px] text-zinc-500 mt-1 px-1">Размер: ${product.size}</p>
                 </div>
                 
-                <!-- Нижняя часть карточки (Цена + Счетчик) -->
+                <!-- Цена + Счетчик -->
                 <div class="mt-4 pt-3 border-t border-zinc-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-1">
                     <span class="text-base font-bold text-[#C67C4E]">
                         ${product.price} ₽<span class="text-[10px] font-normal text-zinc-500"> / ${unit}</span>
@@ -137,10 +161,10 @@ function updateCart() {
                         <img src="${product.image}" alt="${product.name}" 
                              class="w-12 h-12 object-cover rounded-xl bg-zinc-900 border border-zinc-800/50" 
                              onerror="this.src='https://placehold.co/100x100/1c1c1e/3f3f46?text=Нет+фото'">
-                            <div>
-                                <h4 class="text-xs font-bold text-zinc-100 leading-tight">${product.name}</h4>
-                                <p class="text-[10px] text-zinc-500 mt-1">${product.size} • ${product.price} ₽</p>
-                            </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-zinc-100 leading-tight">${product.name}</h4>
+                            <p class="text-[10px] text-zinc-500 mt-1">${product.size} • ${product.price} ₽</p>
+                        </div>
                     </div>
                     <div class="text-right flex flex-col items-end">
                         <span class="text-xs font-bold text-[#C67C4E]">${itemTotal} ₽</span>
@@ -166,7 +190,7 @@ function updateCart() {
     totalPriceEl.textContent = `${total} ₽`;
 }
 
-// Слушатель события отправки заказа
+// Отправка заказа
 if (submitBtn) {
     submitBtn.addEventListener('click', async () => {
         const city = cityInput ? cityInput.value.trim() : "";
@@ -228,5 +252,5 @@ if (submitBtn) {
     });
 }
 
-// Инициализация загрузки товаров
+// Запуск фоновой и локальной загрузки
 loadProducts();
