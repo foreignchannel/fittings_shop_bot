@@ -8,12 +8,11 @@ export default async function handler(req, res) {
     const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID;
 
     if (!BOT_TOKEN || !ADMIN_CHAT_ID) {
-        return res.status(500).json({ error: 'Environment variables are missing' });
+        return res.status(500).json({ error: 'Config missing' });
     }
 
     const itemsText = items.map(item => `• ${item.name} (${item.size}) x${item.qty} — ${item.total} ₽`).join('\n');
     
-    // Сообщение сестре (администратору)
     const adminMessage = `
 <b>🔔 Новый заказ!</b>
 
@@ -26,7 +25,6 @@ ${itemsText}
 💰 <b>Итого к оплате:</b> ${totalPrice} ₽
 `;
 
-    // Сообщение клиенту
     const customerMessage = `
 <b>✅ Ваш заказ успешно оформлен!</b>
 
@@ -39,9 +37,11 @@ ${itemsText}
 Администратор свяжется с вами в ближайшее время для подтверждения. Спасибо за заказ!
 `;
 
+    let adminSent = false;
+
     try {
-        // 1. Отправка администратору
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        // 1. Отправка администратору (ОБЯЗАТЕЛЬНО)
+        const adminResponse = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -50,9 +50,17 @@ ${itemsText}
                 parse_mode: 'HTML'
             })
         });
+        
+        if (adminResponse.ok) {
+            adminSent = true;
+        }
+    } catch (error) {
+        console.error('Ошибка отправки админу:', error);
+    }
 
-        // 2. Отправка покупателю (если известен его chat_id)
-        if (user.id) {
+    // 2. Отправка покупателю (НЕОБЯЗАТЕЛЬНО — ошибка здесь больше не ломает весь процесс)
+    if (user.id) {
+        try {
             await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -62,11 +70,14 @@ ${itemsText}
                     parse_mode: 'HTML'
                 })
             });
+        } catch (custError) {
+            console.error('Не удалось отправить копию клиенту (возможно, бот заблокирован или не запущен):', custError);
         }
+    }
 
+    if (adminSent) {
         return res.status(200).json({ success: true });
-    } catch (error) {
-        console.error('Ошибка Telegram API:', error);
-        return res.status(500).json({ error: 'Failed to send message' });
+    } else {
+        return res.status(500).json({ error: 'Failed to notify admin' });
     }
 }
