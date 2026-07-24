@@ -5,8 +5,8 @@ tg.expand();
 let products = [];
 let cart = {};
 
-// Ваша ссылка на Google Sheets API
-const PRODUCTS_API_URL = "https://script.google.com/macros/s/AKfycbwFUVouTg09bCWvwdWIPvsE2X0qOU4jxzqkq_BbExYdpvjzldaopFre867gpbkrpZneD/exec";
+// Ваша рабочая ссылка на Google Sheets API
+const PRODUCTS_API_URL = "https://script.google.com/macros/s/AKfycbx6aXJ7YJmmOFIlEeBgEwgyBg9I5GVeDUFURA6Ri5nMpJi_GGM7cQjBN8o2bz_djSrS/exec";
 
 // Блок объявления переменных DOM-элементов
 const productsGrid = document.getElementById('products-grid');
@@ -17,20 +17,20 @@ const submitBtn = document.getElementById('submit-order-btn');
 
 // Загрузка товаров с использованием мгновенного кэширования (SWR)
 async function loadProducts() {
-    // 1. Быстрый рендеринг из локального кэша телефона
+    // 1. Пытаемся мгновенно загрузить товары из локального кэша телефона
     const cachedData = localStorage.getItem('fittings_products_cache');
     if (cachedData) {
         try {
             products = JSON.parse(cachedData);
             renderProducts();
             updateCart();
-            hidePreloader();
+            hidePreloader(); // Сразу же убираем экран загрузки!
         } catch (e) {
             console.error("Ошибка чтения кэша:", e);
         }
     }
 
-    // 2. Фоновый запрос к Google Таблице за свежими остатками
+    // 2. В фоновом режиме делаем запрос к Google Таблице за свежими остатками
     try {
         const response = await fetch(PRODUCTS_API_URL);
         if (!response.ok) throw new Error('Ошибка фоновой загрузки');
@@ -39,11 +39,13 @@ async function loadProducts() {
         products = freshProducts;
         localStorage.setItem('fittings_products_cache', JSON.stringify(freshProducts));
         
+        // Тихо обновляем витрину свежими данными
         renderProducts();
         updateCart();
     } catch (error) {
         console.error("Ошибка обновления данных из Google:", error);
         
+        // Если кэша вообще не было и сеть упала — только тогда показываем ошибку
         if (products.length === 0 && productsGrid) {
             productsGrid.innerHTML = `
                 <div class="col-span-2 text-center py-8">
@@ -53,6 +55,7 @@ async function loadProducts() {
             `;
         }
     } finally {
+        // На случай самого первого входа (когда кэша еще нет) убираем прелоадер после завершения запроса
         hidePreloader();
     }
 }
@@ -66,7 +69,7 @@ function hidePreloader() {
     }
 }
 
-// Рендеринг карточек
+// Рендеринг карточек товаров на витрине
 function renderProducts() {
     if (!productsGrid) return;
     
@@ -75,20 +78,18 @@ function renderProducts() {
         const currentQty = cart[product.id] || 0;
         const unit = product.unit || 'шт.';
         
-        // Матовые стеклянные плашки: полупрозрачный белый (20-25%) с мягким размытием и черным текстом
+        // Легкие полупрозрачные стеклянные плашки с черным текстом без лишних слов
         const stockBadge = isOutOfStock 
-            ? `<span class="absolute top-2 left-2 bg-red-500/20 backdrop-blur-sm px-2 py-0.5 rounded-lg text-[10px] text-red-950 font-bold border border-red-500/10 shadow-sm">Нет</span>`
-            : `<span class="absolute top-2 left-2 bg-white/25 backdrop-blur-sm px-2 py-0.5 rounded-lg text-[10px] text-black font-bold border border-white/10 shadow-sm">${product.stock} ${unit}</span>`;
-
+            ? `<span class="absolute top-2 left-2 bg-red-500/20 backdrop-blur-md px-2 py-0.5 rounded-lg text-[10px] text-red-950 font-bold border border-red-500/10 shadow-sm">Нет</span>`
+            : `<span class="absolute top-2 left-2 bg-white/25 backdrop-blur-md px-2 py-0.5 rounded-lg text-[10px] text-black font-bold border border-white/10 shadow-sm">${product.stock} ${unit}</span>`;
         const opacityClass = isOutOfStock ? 'opacity-40' : '';
 
         return `
-            <!-- Класс smooth-gpu-card ускоряет отрисовку за счет графического процессора телефона -->
-            <div class="group relative bg-[#1C1C1E] border border-zinc-800/40 rounded-[24px] p-3 flex flex-col justify-between transition-all duration-300 hover:border-[#C67C4E]/30 smooth-gpu-card ${opacityClass}">
+            <div class="group relative bg-[#1C1C1E] border border-zinc-800/40 rounded-[24px] p-3 flex flex-col justify-between transition-all duration-300 hover:border-[#C67C4E]/30 hover:shadow-[0_12px_40px_rgba(0,0,0,0.35),0_8px_20px_rgba(198,124,78,0.06)] ${opacityClass}">
                 <div>
-                    <!-- Изображение с асинхронной декодировкой для устранения зависаний скролла -->
+                    <!-- Изображение -->
                     <div class="relative w-full aspect-square bg-zinc-950/80 rounded-[18px] overflow-hidden mb-3">
-                        <img src="${product.image}" alt="${product.name}" loading="lazy" decoding="async"
+                        <img src="${product.image}" alt="${product.name}" loading="lazy" 
                              class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                              onerror="this.src='https://placehold.co/300x300/1c1c1e/3f3f46?text=Fittings_shop'">
                         ${stockBadge}
@@ -154,9 +155,9 @@ function updateCart() {
             const unit = product.unit || 'шт.';
             
             return `
-                <div class="flex items-center justify-between bg-[#131313]/50 backdrop-blur-md border border-zinc-800/40 rounded-2xl p-3 shadow-sm smooth-gpu-card">
+                <div class="flex items-center justify-between bg-[#131313]/50 backdrop-blur-md border border-zinc-800/40 rounded-2xl p-3 shadow-sm">
                     <div class="flex items-center space-x-3">
-                        <img src="${product.image}" alt="${product.name}" loading="lazy" decoding="async"
+                        <img src="${product.image}" alt="${product.name}" 
                              class="w-12 h-12 object-cover rounded-xl bg-zinc-900 border border-zinc-800/50" 
                              onerror="this.src='https://placehold.co/100x100/1c1c1e/3f3f46?text=Нет+фото'">
                         <div>
